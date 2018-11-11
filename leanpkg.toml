@@ -1,0 +1,8 @@
+[package]
+name = "libconfig"
+version = "0.1"
+lean_version = "khoek/klean:3.4.4"
+path = "src"
+
+[dependencies]
+mathlib = {git = "https://github.com/leanprover/mathlib", rev = "891dfbbebba8a0269072460785172c294935af22"}
