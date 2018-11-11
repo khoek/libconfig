@@ -1,6 +1,6 @@
 import .cfgopt
 
-namespace config
+namespace iconfig
 
 open tactic
 
@@ -175,4 +175,4 @@ meta def string (n : name) (v : parse (letval pstring)) : tactic unit :=
 meta def ident (n : name) (v : parse ident) : tactic unit :=
   publish n $ value.name v
 
-end config
+end iconfig

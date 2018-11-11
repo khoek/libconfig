@@ -15,9 +15,9 @@ private meta def make_ns_defs (ns : name) : environment → list (name × expr �
 meta def iconfig_mk (n : name) : tactic unit := do
   e ← tactic.get_env,
   e ← make_ns_defs (mk_config_ns n) e [
-    (`save_info, `(pos → config unit), `(config.save_info)),
-    (`step, `(Π {α : Type}, config α → config unit), `(λ {α : Type} (c : config α), config.step c)),
-    (`interactive.itactic, `(Type), `(config unit))
+    (`save_info, `(pos → iconfig_tac unit), `(iconfig.save_info)),
+    (`step, `(Π {α : Type}, iconfig_tac α → iconfig_tac unit), `(λ {α : Type} (c : iconfig_tac α), iconfig.step c)),
+    (`interactive.itactic, `(Type), `(iconfig_tac unit))
   ],
   tactic.set_env e
 
