@@ -5,7 +5,7 @@ section
 iconfig_mk my_tac
 
 iconfig_add my_tac [
-  abool  : iconfig.boolc {},
+  abool  : iconfig.bool,
   anum   : iconfig.nat,
   aenum  : iconfig.enat,
   astr   : iconfig.string,

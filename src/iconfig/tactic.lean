@@ -148,20 +148,8 @@ meta def read (cfg : tactic unit) : tactic result := do
 open lean.parser interactive interactive.types
 open cfgopt
 
-inductive overload_policy
-| ignore
-| override (n : option name) : overload_policy
-| default (n : option name) : overload_policy
-
-structure cfg_params (α : Type) :=
-(default : option α := none)
-(global_name : overload_policy := overload_policy.default none)
-
-meta def boolc (cfg : cfg_params bool) (n : name) (v : parse (letval pbool)) : tactic unit :=
-  publish n $ value.bool v
-
 meta def bool (n : name) (v : parse (letval pbool)) : tactic unit :=
-  boolc {} n v
+  publish n $ value.bool v
 
 meta def nat (n : name) (v : parse (letval small_nat)) : tactic unit :=
   publish n $ value.nat v
