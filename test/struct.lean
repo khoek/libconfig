@@ -1,4 +1,4 @@
-import iconfig
+import tactic.iconfig
 
 open tactic
 
