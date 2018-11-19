@@ -1,5 +1,7 @@
 import .lib.parser
 import .monad
+import .struct
+import .tactic
 
 open lean lean.parser
 open interactive interactive.types
@@ -21,10 +23,6 @@ meta def iconfig_mk (n : name) : tactic unit := do
   ],
   tactic.set_env e
 
-@[user_command] meta def iconfig_mk_cmd (meta_info : decl_meta_info) (_ : parse (tk "iconfig_mk")) : lean.parser unit := do
-  n ← ident,
-  of_tactic' $ iconfig_mk n
-
 meta def iconfig_add (cfgn : name) (n : name) (val : pexpr) : tactic unit := do
   val ← tactic.to_expr val,
   let val := expr.app val `(n),
@@ -35,6 +33,15 @@ meta def iconfig_add (cfgn : name) (n : name) (val : pexpr) : tactic unit := do
     ((`interactive).append n, ty, val)
   ],
   tactic.set_env e
+
+meta def iconfig_add_struct (cfgn : name) (struct : name) : tactic unit := do
+  e ← tactic.get_env,
+  l ← iconfig.get_struct_types e struct,
+  l.mmap' (λ s, iconfig_add cfgn s.1 s.2.to_reader_pexpr)
+
+@[user_command] meta def iconfig_mk_cmd (meta_info : decl_meta_info) (_ : parse (tk "iconfig_mk")) : lean.parser unit := do
+  n ← ident,
+  of_tactic' $ iconfig_mk n
 
 private meta def eat_pairs (cfgn : name) : lean.parser unit := (do
   n ← lean.parser.ident,
@@ -50,6 +57,11 @@ private meta def eat_pairs (cfgn : name) : lean.parser unit := (do
   lean.parser.tk "[",
   eat_pairs cfgn,
   lean.parser.tk "]"
+
+@[user_command] meta def iconfig_add_struct_cmd (meta_info : decl_meta_info) (_ : parse (tk "iconfig_add_struct")) : lean.parser unit := do
+  cfgn ← lean.parser.ident,
+  struct ← lean.parser.ident,
+  iconfig_add_struct cfgn struct
 
 reserve prefix iconfig:max
 @[user_notation] meta def iconfig_not (_ : parse (tk "iconfig")) : lean.parser pexpr := do
