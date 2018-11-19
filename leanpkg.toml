@@ -1,5 +1,5 @@
 [package]
-name = "libconfig"
+name = "libiconfig"
 version = "0.1"
 lean_version = "khoek/klean:3.4.4"
 path = "src"
