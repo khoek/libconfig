@@ -2,4 +2,4 @@
 
 # libiconfig
 
-Lean library for conveniently specifying interactive configuration options at tactic invocation time.
+Lean library for conveniently specifying **i**nteractive **config**uration options at tactic invocation time.
