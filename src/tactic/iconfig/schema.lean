@@ -1,13 +1,16 @@
+import .types
 
 namespace iconfig
 
-inductive overload_policy
-| ignore
-| override (n : option name) : overload_policy
-| default (n : option name) : overload_policy
+meta def default_schema : schema := ⟨none, overload_policy.ignore⟩
 
-structure schema_item (α : Type) :=
-(default : option α := none)
-(global_name : overload_policy := overload_policy.default none)
+namespace schema
+
+-- TODO implement the other policy options
+meta def apply (s : schema) : option cfgopt.value → option cfgopt.value
+| none := s.default
+| (some o) := o
+
+end schema
 
 end iconfig

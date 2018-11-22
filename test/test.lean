@@ -4,12 +4,14 @@ section
 
 iconfig_mk my_tac
 
+set_option formatter.hide_full_terms false
+
 iconfig_add my_tac [
-  abool  : iconfig.tactic.bool,
-  anum   : iconfig.tactic.nat,
-  aenum  : iconfig.tactic.enat,
-  astr   : iconfig.tactic.string,
-  aident : iconfig.tactic.name,
+  abool  : bool, -- (TODO:) := tt ! iconfig.overload_policy.ignore⟩,
+  anum   : nat,
+  aenum  : enat,
+  astr   : string,
+  aident : name,
 ]
 
 end

@@ -1,4 +1,8 @@
-import .cfgopt
+import data.list
+import .types
+import .schema
+import .monad
+import .env
 
 namespace iconfig
 
@@ -20,23 +24,47 @@ meta def explained.munwrap {α : Type} : explained α → option α → tactic �
 | (bad _ _) (some a)  := return a
 | (bad _ reason) none := tactic.fail reason
 
-meta def result : Type := list cfgopt
-
 namespace result
 
 variable (r : result)
 
-meta def to_list : list cfgopt := r
-
 meta def dump : tactic unit :=
-  tactic.trace r.to_list
+  tactic.trace r.opts
 
-private meta def find_aux (n : name) : list cfgopt → option cfgopt.value
+private meta def cfgopt_find (n : name) : list cfgopt → option cfgopt.value
 | [] := none
-| (⟨n', v⟩ :: rest) := if n = n' then v else find_aux rest
+| (⟨n', v⟩ :: rest) := if n = n' then v else cfgopt_find rest
+
+private meta def schema_find (n : name) : list (name × schema) → option schema
+| [] := none
+| ((n', s) :: rest) := if n = n' then s else schema_find rest
 
 meta def find (n : name) : option cfgopt.value :=
-find_aux n r.to_list
+let s := match schema_find n r.sch with
+| none := default_schema
+| some s := s
+end in s.apply $ cfgopt_find n r.opts
+
+meta def clear (n : name) : result :=
+  {r with opts := r.opts.filter $ λ co, co.key ≠ n}
+
+meta def clearl : result → list name → result
+| r [] := r
+| r (n :: rest) := clearl (r.clear n) rest
+
+meta def add (n : name) (v : cfgopt.value) : result :=
+  {r with opts := r.opts.concat ⟨n, v⟩}
+
+meta def addl : result → list (name × cfgopt.value) → result
+| r [] := r
+| r ((n, v) :: rest) := addl (r.add n v) rest
+
+meta def set (n : name) (v : cfgopt.value) : result :=
+  (r.clear n).add n v
+
+meta def setl : result → list (name × cfgopt.value) → result
+| r [] := r
+| r ((n, v) :: rest) := setl (r.set n v) rest
 
 end result
 
@@ -154,6 +182,9 @@ do match r.find n with
 meta def opexpr (n : _root_.name) : option pexpr :=
 (xpexpr r n).to_option
 
+meta def ipexpr (n : _root_.name) (default : pexpr) : pexpr :=
+(xpexpr r n).unwrap default
+
 meta def pexpr (n : _root_.name) (default : option pexpr := none) : tactic pexpr :=
 (xpexpr r n).munwrap default
 
@@ -206,6 +237,43 @@ meta def lookup (n : _root_.name) : type → tactic value
 | type.pexpr := value.pexpr <$> r.pexpr n
 | (type.list t) := value.list t <$> r.list_raw t n
 
+open tactic
+
+meta def struct (r : result) (n : _root_.name) (α : Type) [reflected α] : tactic α := do
+  e ← get_env,
+  n ← resolve_constant n,
+  fs ← get_struct_types e n,
+  mk_config n α $ list.join $ fs.map (λ s,
+    match r.olookup s.1 s.2 with
+    | some v := [(s.1, v)]
+    | none := []
+    end
+  )
+
 end result
+
+open tactic
+
+private meta def collect (cfg : tactic unit) : tactic (list cfgopt) := do
+  gs ← get_goals,
+  m₁ ← mk_meta_var `(list cfgopt),
+  m₂ ← mk_meta_var `(unit),
+  set_goals [m₁, m₂],
+  cfg,
+  exact `(@list.nil cfgopt),
+  l ← instantiate_mvars m₁,
+  set_goals gs,
+  eval_expr (list cfgopt) l
+
+-- TODO Find duplicates, report a warning when they are overriding
+-- or an error when they are of the wrong type.
+private meta def compile (r : list cfgopt) : tactic (list cfgopt) :=
+  return r
+
+meta def read (cfg : tactic unit) : tactic result := do
+  opts ← collect cfg >>= compile,
+  cfgn ← (⟨opts, []⟩ : result).name INTERNAL_INST_NAME,
+  sch ← env_get_schema cfgn,
+  return ⟨opts, sch⟩
 
 end iconfig

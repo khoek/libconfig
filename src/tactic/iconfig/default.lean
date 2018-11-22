@@ -1,4 +1,4 @@
 import .tactic
 import .monad
 import .command
-import .struct
+import .result

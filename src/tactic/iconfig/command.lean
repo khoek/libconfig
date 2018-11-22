@@ -1,70 +1,40 @@
-import .lib.parser
-import .monad
-import .struct
 import .tactic
 
-open lean lean.parser
+open iconfig
+open tactic lean lean.parser
 open interactive interactive.types
 
-meta def mk_config_ns (n : name) : name := (`config).append n
-
-private meta def make_ns_defs (ns : name) : environment → list (name × expr × expr) → tactic environment
-| e [] := return e
-| e ((s, t, v) :: rest) := do
-  e ← e.add $ declaration.defn (ns.append s) [] t v (reducibility_hints.regular 1 tt) ff,
-  make_ns_defs e rest
-
-meta def iconfig_mk (n : name) : tactic unit := do
-  e ← tactic.get_env,
-  e ← make_ns_defs (mk_config_ns n) e [
-    (`save_info, `(pos → iconfig_tac unit), `(iconfig.save_info)),
-    (`step, `(Π {α : Type}, iconfig_tac α → iconfig_tac unit), `(λ {α : Type} (c : iconfig_tac α), iconfig.step c)),
-    (`interactive.itactic, `(Type), `(iconfig_tac unit))
-  ],
-  tactic.set_env e
-
-meta def iconfig_add (cfgn : name) (n : name) (val : pexpr) : tactic unit := do
-  val ← tactic.to_expr val,
-  let val := expr.app val `(n),
-  ty ← tactic.infer_type val,
-
-  e ← tactic.get_env,
-  e ← make_ns_defs (mk_config_ns cfgn) e [
-    ((`interactive).append n, ty, val)
-  ],
-  tactic.set_env e
-
-meta def iconfig_add_struct (cfgn : name) (struct : name) : tactic unit := do
-  e ← tactic.get_env,
-  l ← iconfig.get_struct_types e struct,
-  l.mmap' (λ s, iconfig_add cfgn s.1 s.2.to_reader_pexpr)
-
-@[user_command] meta def iconfig_mk_cmd (meta_info : decl_meta_info) (_ : parse (tk "iconfig_mk")) : lean.parser unit := do
+@[user_command] meta def iconfig_mk_cmd (_ : decl_meta_info) (_ : parse (tk "iconfig_mk")) : lean.parser unit := do
   n ← ident,
-  of_tactic' $ iconfig_mk n
+  of_tactic' $ iconfig.env_mk n
 
-private meta def eat_pairs (cfgn : name) : lean.parser unit := (do
+private meta def eat_members (cfgn : name) : lean.parser unit := (do
   n ← lean.parser.ident,
   lean.parser.tk ":",
-  val ← texpr,
-  of_tactic' $ iconfig_add cfgn n val,
+  val ← lean.parser.ident,
+  e ← mk_const $ (`iparam).append val,
+  e ← eval_expr (name → name → lean.parser unit) e,
+  e cfgn n,
   optional $ lean.parser.tk ",",
-  eat_pairs
-) <|> return ()
+  eat_members)
+  <|> return ()
 
-@[user_command] meta def iconfig_add_cmd (meta_info : decl_meta_info) (_ : parse (tk "iconfig_add")) : lean.parser unit := do
+@[user_command] meta def iconfig_add_cmd (_ : decl_meta_info) (_ : parse (tk "iconfig_add")) : lean.parser unit := do
   cfgn ← lean.parser.ident,
+  assert_config_exists cfgn,
   lean.parser.tk "[",
-  eat_pairs cfgn,
+  eat_members cfgn,
   lean.parser.tk "]"
 
-@[user_command] meta def iconfig_add_struct_cmd (meta_info : decl_meta_info) (_ : parse (tk "iconfig_add_struct")) : lean.parser unit := do
+@[user_command] meta def iconfig_add_struct_cmd (_ : decl_meta_info) (_ : parse (tk "iconfig_add_struct")) : lean.parser unit := do
   cfgn ← lean.parser.ident,
+  assert_config_exists cfgn,
   struct ← lean.parser.ident,
-  iconfig_add_struct cfgn struct
+  struct ← resolve_constant struct,
+  iconfig.env_add_struct cfgn struct
 
 reserve prefix iconfig:max
 @[user_notation] meta def iconfig_not (_ : parse (tk "iconfig")) : lean.parser pexpr := do
   n ← lean.parser.ident,
-  let e := ((`config).append n).append `interactive.itactic,
-  of_tactic' $ tactic.resolve_name e
+  let e := ((`iconfig).append n).append `interactive.itactic,
+  of_tactic' $ resolve_name e
